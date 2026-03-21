@@ -1,0 +1,25 @@
+# Rust
+/target/
+**/target/
+Cargo.lock
+
+# Go
+__debug_bin.exe
+*.exe
+*.test
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.pyd
+*.so
+*.dll
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
