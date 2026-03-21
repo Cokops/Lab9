@@ -1,0 +1,109 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  # ========== ТЕСТИРОВАНИЕ ==========
+  test:
+    name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+    
+    - name: Install maturin
+      run: pip install maturin
+    
+    - name: Build and test
+      working-directory: ./zad5
+      run: |
+        maturin develop --release
+        python -c "import rust_python_struct; p = rust_python_struct.Person('Test', 25); print(p.greet())"
+    
+    - name: Run Python tests
+      working-directory: ./zad5
+      run: python tests/test_module.py
+
+  # ========== СБОРКА WHEELS ==========
+  build-wheels:
+    name: Build wheels for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    needs: [test]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+    
+    - name: Install maturin
+      run: pip install maturin
+    
+    - name: Build wheels
+      working-directory: ./zad5
+      run: maturin build --release --out dist
+    
+    - name: Upload wheels
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheels-${{ matrix.os }}
+        path: zad5/dist/
+
+  # ========== ПУБЛИКАЦИЯ НА PyPI ==========
+  publish:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: [build-wheels]
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download all wheels
+      uses: actions/download-artifact@v4
+      with:
+        path: dist/
+    
+    - name: Move wheels to final directory
+      run: |
+        mkdir -p final_dist
+        find dist -name "*.whl" -exec mv {} final_dist/ \;
+    
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
+        packages-dir: final_dist/
