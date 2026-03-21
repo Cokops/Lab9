@@ -45,7 +45,6 @@ func handleConnection(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 
 	for {
-		// Читаем строку до символа новой строки
 		message, err := reader.ReadString('\n')
 		if err != nil {
 			fmt.Printf("Клиент отключился: %s\n", conn.RemoteAddr().String())
@@ -80,7 +79,7 @@ func backgroundProcessor() {
 			fmt.Printf("Фоновая обработка: %s\n", msg)
 			time.Sleep(2 * time.Second) // Имитация работы
 			fmt.Printf("Обработка завершена для: %s\n", msg)
-			
+
 		default:
 			// Если нет сообщений, делаем паузу, чтобы не нагружать CPU
 			time.Sleep(100 * time.Millisecond)
